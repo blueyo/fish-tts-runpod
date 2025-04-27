@@ -1,0 +1,44 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug fish-speech-candle speaker encode loop",
+      "cargo": {
+        "args": [
+          "build",
+          "--bin=fish_speech_core",
+          "--package=fish_speech_core"
+        ],
+        "filter": {
+          "name": "fish_speech_core",
+          "kind": "bin"
+        }
+      },
+      "args": [
+        "--checkpoint-path",
+        "./notebooks/firefly-gan-vq-fsq-4x1024-42hz-generator.safetensors",
+        "--input",
+        "./tests/resources/ja-1.wav",
+        "-o",
+        "./foo.npy"
+      ],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug llama_generate",
+      "cargo": {
+        "args": ["build", "--bin=llama_generate", "--package=fish_speech_core"]
+      },
+      "program": "${workspaceFolder}/target/debug/llama_generate",
+      "args": ["--text", "Hello world!", "--temp", "0"],
+      "env": {
+        "RUST_BACKTRACE": "1"
+      },
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
