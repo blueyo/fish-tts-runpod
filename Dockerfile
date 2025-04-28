@@ -1,15 +1,15 @@
 # ───── Stage 1: Build fish-speech.rs with CUDA ─────
-# Use an official NVIDIA CUDA image that includes the toolkit and dev libraries for Ubuntu 22.04
-# Using the -devel variant to include CUDA development tools needed for compilation
-FROM nvidia/cuda:12.1.1-devel-ubuntu22.04 AS builder
+# Use official PyTorch image matching known working CUDA version (11.8)
+FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-devel AS builder
 
-# Install build dependencies and Rust via rustup
+# Install potentially missing build dependencies and Rust via rustup
+# Base image includes many tools, ensure specifics and rustup requirements are present
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    build-essential \
     pkg-config \
     libssl-dev \
     libsndfile1-dev \
+    curl \
+    # git is likely present, but included for safety
     git \
     && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.78 && \
@@ -17,7 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # Set ENV vars for subsequent steps. ENV ensures PATH is set correctly for new shell sessions (like subsequent RUN commands).
-# Add Rust and CUDA bin directories to PATH
+# Add Rust and CUDA bin directories to PATH (CUDA 11.8 expected at /usr/local/cuda)
 ENV PATH="/root/.cargo/bin:/usr/local/cuda/bin:${PATH}"
 # Explicitly set CUDA lib path for dynamic linker
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
@@ -25,10 +25,11 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 ENV CUDA_HOME=/usr/local/cuda
 
 # Verify Rust installation and CUDA toolkit
-# Note: nvidia-smi is not available during build time, only at runtime
 RUN rustc --version && \
     cargo --version && \
     nvcc --version  # Verify CUDA compiler instead of nvidia-smi
+
+# REMOVED: ENV CUDA_COMPUTE_CAP - Attempting build without it first on this base image
 
 WORKDIR /workspace
 
