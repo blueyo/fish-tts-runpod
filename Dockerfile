@@ -17,9 +17,10 @@ ENV CANDLE_FLASH_ATTN_BUILD_DIR=/tmp/candle-kernels
 
 WORKDIR /workspace
 
-# 🚫  —— remove the 'smart' fetch layer that broke the build —— 🚫
-# COPY Cargo.toml Cargo.lock ./
-# RUN cargo fetch
+# ──  Set compute-cap so bindgen_cuda skips `nvidia-smi`
+ARG CUDA_COMPUTE_CAP=86          # 3090 → SM 8.6
+ENV CUDA_COMPUTE_CAP=${CUDA_COMPUTE_CAP}
+
 
 # ✅  —— just copy everything and build —— ✅
 COPY . .
