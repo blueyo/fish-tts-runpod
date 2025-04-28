@@ -13,20 +13,24 @@ RUN apt-get update && \
 
 RUN curl -sSf https://sh.rustup.rs | bash -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
-ENV CANDLE_FLASH_ATTN_BUILD_DIR=/tmp/candle-kernels
 
 WORKDIR /workspace
 
 # ──  Set compute-cap so bindgen_cuda skips `nvidia-smi`
-ARG CUDA_COMPUTE_CAP=86          # 3090 → SM 8.6
+ARG FLASH_ATTN=0
+ARG CUDA_COMPUTE_CAP=86          
 ENV CUDA_COMPUTE_CAP=${CUDA_COMPUTE_CAP}
 
 
 # ✅  —— just copy everything and build —— ✅
 COPY . .
 
-RUN cargo build --release --features cuda,flash-attn --bin server
-
+RUN if [ "$FLASH_ATTN" = "1" ]; then \
+      cargo build --release --features cuda,flash-attn --bin server ; \
+    else \
+      cargo build --release --features cuda --bin server ; \
+    fi
+    
 ########################
 # 2️⃣  Runtime stage
 ########################
