@@ -2,20 +2,26 @@
 # Use official PyTorch image matching known working CUDA version (11.8) and a recent PyTorch
 FROM pytorch/pytorch:2.7.0-cuda11.8-cudnn9-devel AS builder
 
-# Install potentially missing build dependencies and Rust via rustup
 # Base image includes many tools, ensure specifics and rustup requirements are present
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update
+
+RUN apt-get install -y --no-install-recommends \
     pkg-config \
     libssl-dev \
     libsndfile1-dev \
     curl \
     # git is likely present, but included for safety
-    git \
-    && \
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.78 && \
-    # Clean up downloaded package files and lists
-    apt-get clean && \
+    git
+
+# Install Rust via rustup
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.78
+
+# Clean up downloaded package files and lists
+RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Add Rust to PATH environment variable for subsequent commands
+ENV PATH="/root/.cargo/bin:${PATH}"
 
 # Set ENV vars for subsequent steps. ENV ensures PATH is set correctly for new shell sessions (like subsequent RUN commands).
 # Add Rust and CUDA bin directories to PATH (CUDA 11.8 expected at /usr/local/cuda)
