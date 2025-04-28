@@ -1,82 +1,58 @@
-# ───── Stage 1: Build fish-speech.rs with CUDA ─────
-# Use official PyTorch image matching known working CUDA version (11.8) and a recent PyTorch
-FROM pytorch/pytorch:2.7.0-cuda11.8-cudnn9-devel AS builder
+# syntax=docker/dockerfile:1
 
-# Base image includes many tools, ensure specifics and rustup requirements are present
-RUN apt-get update
+########################
+# 1️⃣  Builder stage
+########################
+# CUDA 11.8 + cuDNN8, same combo RunPod schedules by default
+FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04 AS builder
 
-RUN apt-get install -y --no-install-recommends \
-    pkg-config \
-    libssl-dev \
-    libsndfile1-dev \
-    curl \
-    # git is likely present, but included for safety
-    git
-
-# Install Rust via rustup
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.78
-
-# Clean up downloaded package files and lists
-RUN apt-get clean && \
+# ---- OS & build deps ----
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential clang cmake git curl pkg-config \
+        libssl-dev libsndfile1-dev ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# Add Rust to PATH environment variable for subsequent commands
+# ---- Rust toolchain ----
+RUN curl -sSf https://sh.rustup.rs | bash -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Set ENV vars for subsequent steps. ENV ensures PATH is set correctly for new shell sessions (like subsequent RUN commands).
-# Add Rust and CUDA bin directories to PATH (CUDA 11.8 expected at /usr/local/cuda)
-ENV PATH="/root/.cargo/bin:/usr/local/cuda/bin:${PATH}"
-# Explicitly set CUDA lib path for dynamic linker
-ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
-# Explicitly set CUDA installation root for build scripts
-ENV CUDA_HOME=/usr/local/cuda
-
-# Verify Rust installation and CUDA toolkit
-RUN rustc --version && \
-    cargo --version && \
-    nvcc --version  # Verify CUDA compiler instead of nvidia-smi
-
-# REMOVED: ENV CUDA_COMPUTE_CAP - Attempting build without it first on this base image
+# (Optional) cache for candle flash-attn kernels
+ENV CANDLE_FLASH_ATTN_BUILD_DIR=/tmp/candle-kernels
 
 WORKDIR /workspace
 
-# Copy manifests first (allows caching if only manifests change)
+# ---- Layer-cache: copy manifests first ----
 COPY Cargo.toml Cargo.lock ./
-
-# Copy the entire source code next, so cargo commands can see the full workspace
-COPY . .
-
-# Fetch dependencies (now aware of the full workspace structure)
+# Pre-fetch crates so later code changes don’t bust the cache
 RUN cargo fetch
 
-# Build the server binary with CUDA support
-# The CUDA toolkit should be available via ENV PATH set above.
-RUN cargo build --release --features cuda --bin server
+# ---- Copy the rest of the source ----
+COPY . .
 
-# ───── Stage 2: Slim Runtime ─────
-FROM ubuntu:22.04
-# Install runtime dependencies (libsndfile for audio handling)
-# Note: CUDA runtime libraries are expected to be provided by the host environment (RunPod)
-# via the NVIDIA Container Toolkit, so we don't install them here.
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    libsndfile1 \
-    ca-certificates \
-    curl \
-    && \
+# ---- Compile GPU server ----
+RUN cargo build --release --bin server --features cuda,flash-attn
+
+########################
+# 2️⃣  Runtime stage
+########################
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+
+# Only the tiny libs we need at runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libsndfile1 libssl3 curl && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-# Copy the compiled binary from the builder stage
+
+# ---- Bring in the binary ----
 COPY --from=builder /workspace/target/release/server /usr/local/bin/fish-speech
-# Copy your voice directories from voices-template/ into /app/voices/ inside the container
-COPY voices-template/ ./voices/
 
-# Expose the port the server will listen on
+# ---- (optional) pre-bundle voices ----
+COPY voices-template/ ./voices
+
 EXPOSE 8000
-# Define the command to run when the container starts
-CMD ["fish-speech", "--port", "8000", "--voice-dir", "/app/voices"]
-
-# Add a healthcheck to verify the server is running
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["fish-speech","--port","8000","--voice-dir","/app/voices"]
