@@ -13,7 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.78 && \
-    # Do NOT source env here; rely on ENV PATH below for subsequent steps
+    # Clean up downloaded package files and lists
+    apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Set ENV vars for subsequent steps. ENV ensures PATH is set correctly for new shell sessions (like subsequent RUN commands).
