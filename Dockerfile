@@ -3,35 +3,28 @@
 ########################
 # 1️⃣  Builder stage
 ########################
-# CUDA 11.8 + cuDNN8, same combo RunPod schedules by default
 FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04 AS builder
 
-# ---- OS & build deps ----
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         build-essential clang cmake git curl pkg-config \
         libssl-dev libsndfile1-dev ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-# ---- Rust toolchain ----
 RUN curl -sSf https://sh.rustup.rs | bash -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
-
-# (Optional) cache for candle flash-attn kernels
 ENV CANDLE_FLASH_ATTN_BUILD_DIR=/tmp/candle-kernels
 
 WORKDIR /workspace
 
-# ---- Layer-cache: copy manifests first ----
-COPY Cargo.toml Cargo.lock ./
-# Pre-fetch crates so later code changes don’t bust the cache
-RUN cargo fetch
+# 🚫  —— remove the 'smart' fetch layer that broke the build —— 🚫
+# COPY Cargo.toml Cargo.lock ./
+# RUN cargo fetch
 
-# ---- Copy the rest of the source ----
+# ✅  —— just copy everything and build —— ✅
 COPY . .
 
-# ---- Compile GPU server ----
-RUN cargo build --release --bin server --features cuda,flash-attn
+RUN cargo build --release --features cuda,flash-attn --bin server
 
 ########################
 # 2️⃣  Runtime stage
