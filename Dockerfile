@@ -3,19 +3,23 @@
 # Switched to -base variant to include nvidia-smi needed by candle-kernels build
 FROM nvidia/cuda:12.1.1-base-ubuntu22.04 AS builder
 
-# Install Rust via rustup
+# Install build dependencies, Rust via rustup, source env, and verify nvcc in one step
 RUN apt-get update && apt-get install -y --no-install-recommends curl build-essential pkg-config libssl-dev && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.78 && \
+    # Source the cargo env to ensure PATH is immediately updated for this shell instance
+    . "$HOME/.cargo/env" && \
+    # Now verify nvcc can be found and executed
+    nvcc --version && \
+    # Clean up apt lists
     rm -rf /var/lib/apt/lists/*
+
+# Set ENV vars for subsequent steps and final image layers if needed
 # Add Rust and CUDA bin directories to PATH
 ENV PATH="/root/.cargo/bin:/usr/local/cuda/bin:${PATH}"
 # Explicitly set CUDA lib path for dynamic linker
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 # Explicitly set CUDA installation root for build scripts
 ENV CUDA_HOME=/usr/local/cuda
-
-# Verify nvcc can be executed before cargo build
-RUN nvcc --version
 
 # Verify CUDA and Rust installation (optional)
 # RUN nvidia-smi
