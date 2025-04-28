@@ -11,6 +11,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl build-esse
 ENV PATH="/root/.cargo/bin:/usr/local/cuda/bin:${PATH}"
 # Explicitly set CUDA lib path for dynamic linker
 ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
+# Explicitly set CUDA installation root for build scripts
+ENV CUDA_HOME=/usr/local/cuda
+
+# Verify nvcc can be executed before cargo build
+RUN nvcc --version
 
 # Verify CUDA and Rust installation (optional)
 # RUN nvidia-smi
