@@ -1,6 +1,6 @@
 # ───── Stage 1: Build fish-speech.rs with CUDA ─────
-# Use official PyTorch image matching known working CUDA version (11.8)
-FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-devel AS builder
+# Use official PyTorch image matching known working CUDA version (11.8) and a recent PyTorch
+FROM pytorch/pytorch:2.7.0-cuda11.8-cudnn9-devel AS builder
 
 # Install potentially missing build dependencies and Rust via rustup
 # Base image includes many tools, ensure specifics and rustup requirements are present
