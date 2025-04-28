@@ -24,10 +24,11 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH}
 # Explicitly set CUDA installation root for build scripts
 ENV CUDA_HOME=/usr/local/cuda
 
-# Verify CUDA and Rust installation (optional)
-RUN nvidia-smi
-RUN rustc --version
-RUN cargo --version
+# Verify Rust installation and CUDA toolkit
+# Note: nvidia-smi is not available during build time, only at runtime
+RUN rustc --version && \
+    cargo --version && \
+    nvcc --version  # Verify CUDA compiler instead of nvidia-smi
 
 WORKDIR /workspace
 
