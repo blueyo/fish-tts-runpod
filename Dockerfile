@@ -13,8 +13,8 @@ RUN curl -sSf https://sh.rustup.rs | bash -s -- -y --profile minimal
 ENV PATH="/root/.cargo/bin:${PATH}"
 
 # -------- build-time switches --------
-ARG FLASH_ATTN=0                   # 0 = off (fast CI), 1 = on
-ARG CUDA_COMPUTE_CAP=86            # 3090 = 8.6 ; keep lower for cross-GPU
+ARG FLASH_ATTN=0
+ARG CUDA_COMPUTE_CAP=86
 ENV CUDA_COMPUTE_CAP=${CUDA_COMPUTE_CAP}
 
 WORKDIR /workspace
