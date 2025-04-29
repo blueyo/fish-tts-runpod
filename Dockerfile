@@ -41,7 +41,6 @@ WORKDIR /app
 
 # ---- Rust binary ----
 COPY --from=builder /workspace/target/release/server /usr/local/bin/fish-speech
-RUN strip /usr/local/bin/fish-speech
 
 # ---- Voices + handler ----
 COPY voices-template/ ./voices
